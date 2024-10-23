@@ -1,6 +1,9 @@
 # Danny_Ma_4th_Case
 Databank Data Analysis
 
+![4](https://github.com/user-attachments/assets/59bdb694-dfdb-4619-ad9f-a0f7b96aec71)
+
+
 🏦 8-Week SQL Challenge: Case Study #4 - Data Bank
 Project Overview
 Welcome to my analysis of Danny Ma's 4th case study, the Data Bank challenge, from the 8-Week SQL Challenge. This case study simulates a customer banking environment, focusing on understanding customer nodes, transactions, and experimenting with different data allocation methods to estimate how much data would be required for various strategies.
