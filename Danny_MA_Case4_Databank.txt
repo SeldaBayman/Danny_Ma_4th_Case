@@ -1,0 +1,107 @@
+
+A. Customer Nodes Exploration
+1-How many unique nodes are there on the Data Bank system? Query the customer node data to get a count of distinct nodes.
+
+SELECT COUNT(DISTINCT node_id) AS unique_nodes FROM nodes;
+What is the number of nodes per region?
+
+2-Use a GROUP BY to count nodes in each region.
+
+SELECT region, COUNT(DISTINCT node_id) AS nodes_per_region FROM nodes GROUP BY region;
+How many customers are allocated to each region?
+
+3-Similar to the nodes per region but for customers.
+
+SELECT region, COUNT(DISTINCT customer_id) AS customers_per_region FROM customers GROUP BY region;
+How many days on average are customers reallocated to a different node?
+
+4-Calculate the time difference between reallocation events and take the average.
+
+SELECT AVG(DATEDIFF(realloc_end_date, realloc_start_date)) AS avg_realloc_days FROM reallocation_data;
+Median, 80th, and 95th percentiles for reallocation days per region
+
+5-Use window functions to calculate percentiles.
+
+SELECT region,
+       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY realloc_days) AS median_realloc_days,
+       PERCENTILE_CONT(0.8) WITHIN GROUP (ORDER BY realloc_days) AS p80_realloc_days,
+       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY realloc_days) AS p95_realloc_days
+FROM reallocation_data
+GROUP BY region;
+
+B. Customer Transactions
+1-Unique count and total amount for each transaction type. Group by transaction type and calculate count and sum.
+
+SELECT transaction_type, COUNT(DISTINCT transaction_id) AS unique_count, SUM(amount) AS total_amount 
+FROM transactions 
+GROUP BY transaction_type;
+
+2-Average total historical deposit counts and amounts for all customers.Filter for deposit transactions and calculate averages.
+
+SELECT AVG(deposit_count), AVG(deposit_amount) 
+FROM (SELECT customer_id, COUNT(*) AS deposit_count, SUM(amount) AS deposit_amount 
+      FROM transactions WHERE transaction_type = 'deposit' GROUP BY customer_id) AS deposit_data;
+
+3-Customers making more than 1 deposit and either 1 purchase or withdrawal per month.
+Group transactions by customer and month, then apply conditions.
+
+SELECT month, COUNT(DISTINCT customer_id) AS active_customers 
+FROM transactions 
+WHERE transaction_type = 'deposit'
+GROUP BY month 
+HAVING COUNT(*) > 1
+AND EXISTS (SELECT 1 FROM transactions WHERE transaction_type IN ('purchase', 'withdrawal') AND month = t.month);
+
+4-Closing balance for each customer at the end of the month.Calculate running balance for each customer and extract end-of-month balances.
+
+SELECT customer_id, month, SUM(amount) OVER (PARTITION BY customer_id ORDER BY transaction_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS closing_balance
+FROM transactions;
+Percentage of customers who increase their closing balance by more than 5%
+
+5-Compare closing balances between months.
+
+SELECT COUNT(DISTINCT customer_id) * 100.0 / (SELECT COUNT(DISTINCT customer_id) FROM customers) AS percent_increase
+FROM (SELECT customer_id, 
+             LAG(closing_balance, 1) OVER (PARTITION BY customer_id ORDER BY month) AS previous_balance,
+             closing_balance
+      FROM closing_balances) AS cb
+WHERE closing_balance > previous_balance * 1.05;
+
+C. Data Allocation Challenge
+1-Running customer balance including transaction impact
+
+Already calculated in the closing balance query (running sum over transactions).
+Customer balance at the end of each month
+
+Also calculated in the closing balance query.
+Min, average, and max values of the running balance
+
+2-Use aggregate functions on the running balance.
+
+SELECT customer_id, MIN(running_balance) AS min_balance, AVG(running_balance) AS avg_balance, MAX(running_balance) AS max_balance
+FROM (SELECT customer_id, transaction_date, SUM(amount) OVER (PARTITION BY customer_id ORDER BY transaction_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_balance
+      FROM transactions) AS rb
+GROUP BY customer_id;
+
+3-Monthly data requirement for each option
+
+For each option, the data allocation can be calculated based on the balance or real-time usage patterns. This will likely require a combination of SQL and business logic simulations to model the data allocation across time.
+
+D. Extra Challenge: Interest-Based Data Growth
+1-Daily interest calculation (without compounding)
+Apply the daily interest rate on the balance without compounding.
+
+SELECT customer_id, transaction_date, 
+       closing_balance * (1 + (0.06 / 365)) AS balance_with_interest
+FROM closing_balances;
+Daily compounding interest calculation
+
+This will require a more complex recursive formula to apply daily compounding interest.
+
+-- Hypothetical recursive calculation logic needed, which can be built in SQL or Python.
+
+PowerPoint Presentation
+Headline Insights for Investors and Customers: Highlight Data Bank's secure node allocation system, customer reallocation efficiency (e.g., median reallocation days), and the reliability of their data management system.
+
+Data Provisioning Decision: Summarize the different options for data provisioning (monthly balances, real-time usage, etc.) and highlight which option provides the most efficient balance between performance and resource usage.
+This comprehensive approach covers your analysis and presentation tasks. You can build out these SQL queries, perform the necessary aggregations, and then visualize the results in PowerPoint as per the extension request.
